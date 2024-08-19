@@ -1112,7 +1112,7 @@ std::vector<float> vits_model::process(std::string text) {
 
     struct ggml_tensor* speaker_embeddings = nullptr;
 
-    struct ggml_context * graph_one_ctx = ggml_init({.mem_size   = (size_t)128 * MEGABYTE, .mem_buffer = nullptr});
+    struct ggml_context * graph_one_ctx = ggml_init({.mem_size   = (size_t)384 * MEGABYTE, .mem_buffer = nullptr});
 
     auto start = std::chrono::high_resolution_clock::now();
     auto delta = 0;
