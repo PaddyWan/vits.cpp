@@ -1079,9 +1079,8 @@ struct ggml_cgraph* vits_model::build_graph_part_two(struct ggml_context* ctx, s
     return gf;
 }
 
-void vits_model::execute_graph(struct ggml_context* ctx, struct ggml_cgraph* graph) {
+void vits_model::execute_graph(struct ggml_context* ctx, struct ggml_cgraph* graph, int threads) {
     log("Allocating memory for work computation graph...\n");
-    int threads = get_thread_count();
     auto plan = ggml_graph_plan(graph, threads);
     if (plan.work_size > 0) {
         plan.work_data = (uint8_t*) malloc(plan.work_size);
@@ -1098,7 +1097,7 @@ void vits_model::execute_graph(struct ggml_context* ctx, struct ggml_cgraph* gra
     log("Computation took %lld milliseconds\n", delta);
 }
 
-std::vector<float> vits_model::process(std::string text) {
+std::vector<float> vits_model::process(std::string text, int threads) {
 #if VITS_DEBUG
     auto debug_mode = true;
 #else
@@ -1121,7 +1120,7 @@ std::vector<float> vits_model::process(std::string text) {
     log("Building graph one took %d milliseconds\n", delta);
 
     start = std::chrono::high_resolution_clock::now();
-    this->execute_graph(graph_one_ctx, graph_one);
+    this->execute_graph(graph_one_ctx, graph_one, threads);
     delta += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
 
 #if VITS_DEBUG
@@ -1161,7 +1160,7 @@ std::vector<float> vits_model::process(std::string text) {
 
     size_t alloc_size = ggml_allocr_alloc_graph(allocr, graph_two);
     log("Allocated %f mb for graph two\n", alloc_size / (float)MEGABYTE);
-    this->execute_graph(graph_two_ctx, graph_two);
+    this->execute_graph(graph_two_ctx, graph_two, threads);
     delta += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
     //ggml_graph_dump_dot(graph_two, nullptr, "graph_two.dot");
     if (this->debug_tensor != nullptr)
@@ -1222,8 +1221,8 @@ void vits_free_result(vits_result result) {
     delete[] result.data;
 }
 
-vits_result vits_model_process(vits_model * model, const char * text) {
-    std::vector<float> samples = model->process(text);
+vits_result vits_model_process(vits_model * model, const char * text, int threads) {
+    std::vector<float> samples = model->process(text, threads);
     vits_result r;
     r.data = new float[samples.size()];
     r.size = samples.size();

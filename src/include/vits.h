@@ -45,7 +45,7 @@ public:
     vits_model(struct ggml_context* ctx, std::unique_ptr<vits_model_data> model);
     ~vits_model();
     void log(const char* format, ...);
-    void execute_graph(struct ggml_context* ctx, struct ggml_cgraph* graph);
+    void execute_graph(struct ggml_context* ctx, struct ggml_cgraph* graph, int threads);
     struct ggml_cgraph* build_graph_part_one(struct ggml_context* ctx, struct ggml_tensor * input_ids, struct ggml_tensor* speaker_embeddings);
     struct ggml_cgraph* build_graph_part_two(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* input_ids, struct ggml_tensor * cum_duration, struct ggml_tensor* prior_means, struct ggml_tensor* prior_log_variances, struct ggml_tensor* speaker_embeddings, int output_length);
 
@@ -81,7 +81,7 @@ public:
             float min_bin_width = 1e-3,
             float min_bin_height = 1e-3,
             float min_derivative = 1e-3);
-    std::vector<float> process(std::string text);
+    std::vector<float> process(std::string text, int threads);
 };
 
 #define VITS_API extern "C" __attribute__((visibility("default")))
@@ -99,6 +99,6 @@ VITS_API void vits_free_model(vits_model * model);
 
 VITS_API void vits_free_result(vits_result result);
 
-VITS_API vits_result vits_model_process(vits_model * model, const char * phonemes);
+VITS_API vits_result vits_model_process(vits_model * model, const char * phonemes, int threads);
 
 #endif
