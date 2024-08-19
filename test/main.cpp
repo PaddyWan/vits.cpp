@@ -20,9 +20,8 @@ struct WAVHeader {
     int data_bytes;              // Number of bytes in data. Number of samples * num_channels * sample byte size
 };
 
-bool write_wav(std::string path, float* samples, size_t size) {
+bool write_wav(std::string path, float* samples, size_t size, size_t sample_rate=16000) {
     WAVHeader wav_header;
-    int sample_rate = 16000;
     int num_channels = 1;
     int bit_depth = 16;
 
