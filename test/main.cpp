@@ -148,13 +148,13 @@ int main(int argc, char** argv) {
     vits_model * model = vits_model_load_from_file(params.model_path.c_str());
     assert(model != nullptr);
 
-    //rng.seed(params.seed);
+    rng.seed(params.seed);
 
     auto result = vits_model_process(model, params.phrase.c_str(), params.n_threads);
     if (result.size > 0) {
         printf("Generated: %d samples of audio %f %f %f\n", result.size, result.data[0], result.data[1],
                result.data[2]);
-        printf("Wrote to file: %s\n", write_wav("output.wav", result.data, result.size) ? "true" : "false");
+        printf("Wrote to file: %s\n", write_wav(params.output_path, result.data, result.size) ? "true" : "false");
     }
     vits_free_result(result);
     vits_free_model(model);

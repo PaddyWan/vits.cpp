@@ -5,7 +5,7 @@
 #include "include/vits_tokenizer.h"
 #include "include/common.h"
 #include "include/debug.h"
-
+#include <algorithm>
 
 #ifdef VITS_ESPEAK
 #include <cstring>

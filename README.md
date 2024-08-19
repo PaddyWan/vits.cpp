@@ -1,3 +1,6 @@
+This is a fork of the main: https://github.com/maxilevi/vits.cpp
+All the main changes are in different branches with pull request to the main repo. My main branch combines all these changes and add some additional changes for my specific desktop linux settup.
+
 # vits-cpp
 
 a cpp ggml port of "VITS: Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech." for use in mobile devices. 

@@ -35,26 +35,7 @@ endif()
 if (NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     add_executable(main test/main.cpp)
 
-    add_executable(bench_e2e test/bench_e2e.cpp)
-
     target_include_directories(main PRIVATE src/include ggml/include ${ESPEAK_INCLUDE_DIRS})
     target_link_libraries(main PRIVATE vits ggml ${ESPEAK_LIBRARIES})
 
-    target_include_directories(bench_e2e PRIVATE src/include ggml/include)
-    target_link_libraries(bench_e2e PRIVATE vits ggml)
-
-    add_executable(tests test/test_ggml_utils.cpp)
-    target_include_directories(tests PRIVATE src/include ggml/include)
-    target_link_libraries(tests PRIVATE vits ggml)
-
-    add_executable(bench-simd test/bench_simd.cpp)
-    target_include_directories(bench-simd PRIVATE src/include ggml/include highway/)
-    target_link_libraries(bench-simd PRIVATE vits ggml)
-
-    add_executable(bench test/bench.cpp)
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable Benchmark Testing")
-    set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON CACHE BOOL "Enable downloading of dependencies")
-    add_subdirectory(benchmark)
-    target_include_directories(bench PRIVATE src/include ggml/include)
-    target_link_libraries(bench PRIVATE vits ggml benchmark::benchmark)
 endif()
