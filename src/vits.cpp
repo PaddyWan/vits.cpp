@@ -1217,7 +1217,7 @@ void vits_free_model(vits_model * model) {
 }
 
 void vits_free_result(vits_result result) {
-    delete result.data;
+    delete[] result.data;
 }
 
 vits_result vits_model_process(vits_model * model, const char * text) {
