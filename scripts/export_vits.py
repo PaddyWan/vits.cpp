@@ -5,7 +5,6 @@ from transformers import VitsModel, VitsTokenizer
 def serialize_model_to_binary(config, state_dict, tokenizer, file_name):
     with open(file_name, 'wb') as f:
         # Write tokenizer
-        assert not tokenizer.phonemize
         assert not tokenizer.is_uroman
         # Write tokenizer vocab
         vocab = tokenizer.get_vocab()
@@ -28,7 +27,7 @@ def serialize_model_to_binary(config, state_dict, tokenizer, file_name):
 
         # Write config
         items = config.to_diff_dict().items()
-        f.write(struct.pack('<I', len(items)))
+        f.write(struct.pack('<I', len(items)+1)) #+1 for phonetic
         for key, value in items:
             key_bytes = key.encode('utf-8')
             value_bytes = str(value).encode('utf-8')
@@ -36,6 +35,14 @@ def serialize_model_to_binary(config, state_dict, tokenizer, file_name):
             f.write(key_bytes)
             f.write(struct.pack('<I', len(value_bytes)))
             f.write(value_bytes)
+        key_bytes = "phonetic".encode('utf-8')
+        f.write(struct.pack('<I', len(key_bytes)))
+        f.write(key_bytes)
+        f.write(struct.pack('<I', 1))
+        if tokenizer.phonemize:
+            f.write('1'.encode('utf-8'))
+        else:
+            f.write('0'.encode('utf-8'))
 
         # Write state dict
         tensors = state_dict.items()
