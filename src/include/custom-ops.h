@@ -452,7 +452,7 @@ void execute_conv1d_fp16(struct ggml_tensor * dst, const struct ggml_tensor * in
     auto in_length = inputs->ne[0];
     auto output_channels = inputs->ne[1];
     auto input_channels = weights->ne[0];
-    printf("input channel %d, output channel %d\n", input_channels, output_channels);
+    printf("input channel %ld, output channel %ld\n", input_channels, output_channels);
 
     ASSERT(dst_ptr == src0_ptr, "dst and src0 should be same tensors");
     ASSERT(batch_size == 1, "Only batch size 1 supported");
@@ -474,7 +474,7 @@ void execute_conv1d_fp16(struct ggml_tensor * dst, const struct ggml_tensor * in
     auto remainder = total_elements % nth;
     auto ending = remainder > 0 && nth-1 == ith ? total_elements : offset + part_size;
     // auto start = std::chrono::high_resolution_clock::now();
-    printf("conv1d stride: %d channels: %d, kernel_size: %d, in_+length %d output_size %d\n", stride, output_channels, kernel_size, in_length, output_size);
+    printf("conv1d stride: %ld channels: %ld, kernel_size: %ld, in_+length %ld output_size %ld\n", stride, output_channels, kernel_size, in_length, output_size);
     size_t w = 0;
     auto input_stride1 = inputs->nb[1] / input_size;
     auto weight_stride1 = weights->nb[1] / weights_size;
@@ -776,7 +776,7 @@ template<class T> struct ggml_tensor* gather_impl(struct ggml_context* ctx, stru
             int j = (int) ((T*) index_tensor->data)[i];
             int index = j + i * values_tensor->ne[0];
             char msg[1000];// than the number of elements in the value tensor
-            sprintf(msg, "Index should be smaller (%d < %d)", index, ggml_nelements(values_tensor));
+            sprintf(msg, "Index should be smaller (%d < %ld)", index, ggml_nelements(values_tensor));
             ASSERT(index < ggml_nelements(values_tensor) && index >= 0, msg);
             ((T*)dst->data)[i] = values_ptr[index];
         }
@@ -839,7 +839,7 @@ template<class T> struct ggml_tensor* masked_set_impl(struct ggml_context* ctx, 
         float* values = ggml_get_data_f32(value_tensor);
         auto op = [&index, &values, value_tensor](T src0, T src1) {
             char msg[1000];// than the number of elements in the value tensor
-            sprintf(msg, "Index should be smaller (%d < %d)", index, ggml_nelements(value_tensor));
+            sprintf(msg, "Index should be smaller (%d < %ld)", index, ggml_nelements(value_tensor));
             ASSERT(index < ggml_nelements(value_tensor), msg);
 
             //printf("src1: %f, %d, %d\n", src1, index, ggml_nelements(value_tensor));

@@ -1196,7 +1196,7 @@ vits_model * vits_model_load_from_file(const char * path) {
     };
 
     struct ggml_context * ctx = ggml_init(params);
-    printf("Initialized ggml context with %d mb\n", params.mem_size / 1024 / 1024);
+    printf("Initialized ggml context with %ld mb\n", params.mem_size / 1024 / 1024);
     auto model_data = vits_model_data::from_file(path, ctx);
     return new vits_model(ctx, std::move(model_data));
 }
@@ -1208,7 +1208,7 @@ vits_model * vits_model_load_from_bytes(const char * bytes, size_t size) {
     };
 
     struct ggml_context * ctx = ggml_init(params);
-    printf("Initialized ggml context with %d mb\n", params.mem_size / 1024 / 1024);
+    printf("Initialized ggml context with %ld mb\n", params.mem_size / 1024 / 1024);
     auto model_data = vits_model_data::from_bytes(bytes, size, ctx);
     return new vits_model(ctx, std::move(model_data));
 }

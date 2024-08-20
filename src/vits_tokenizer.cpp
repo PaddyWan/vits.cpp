@@ -9,6 +9,7 @@
 
 #ifdef VITS_ESPEAK
 #include <cstring>
+#include <string_view>
 #include <espeak-ng/speak_lib.h>    
 #endif
 
@@ -126,7 +127,7 @@ std::vector<char> convert_to_phonetic(char* b, char* e)
     ret.reserve(2*std::distance(b,e));
     while(b != e)
     {
-	const std::size_t pos = std::basic_string_view(b,e).find_first_of("!\\,.:;?");
+	const std::size_t pos = std::string_view(b,e).find_first_of("!\\,.:;?");
 	if(pos != std::string::npos)
 	{
 	    const char c = b[pos];
@@ -216,7 +217,7 @@ std::vector<int32_t> vits_tokenizer::tokenize(const std::string& text) {
 	tokens.reserve(phonetic_text.size()*(add_blank?2:1) + 1);
 	if(add_blank)
 	    tokens.push_back(0);
-	std::basic_string_view v(phonetic_text.begin(), phonetic_text.end());
+	std::string_view v(phonetic_text.begin(), phonetic_text.end());
 	while(!v.empty())
 	{
 	    auto it = vocab.begin();

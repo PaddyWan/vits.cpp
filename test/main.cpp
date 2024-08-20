@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
 
     auto result = vits_model_process(model, params.phrase.c_str(), params.n_threads);
     if (result.size > 0) {
-        printf("Generated: %d samples of audio %f %f %f\n", result.size, result.data[0], result.data[1],
+        printf("Generated: %ld samples of audio %f %f %f\n", result.size, result.data[0], result.data[1],
                result.data[2]);
         printf("Wrote to file: %s\n", write_wav(params.output_path, result.data, result.size) ? "true" : "false");
     }
