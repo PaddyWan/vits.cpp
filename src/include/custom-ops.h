@@ -216,7 +216,7 @@ struct ggml_tensor* tensor_##name##suffix(struct ggml_context* ctx, struct ggml_
     UNARY_COPY(name)
 
 template<class T> struct ggml_tensor* flip_3d_impl(struct ggml_context* ctx, struct ggml_tensor* tensor, int along) {
-    ASSERT(tensor->n_dims == 3, "flip3d: Input tensor should be 3D");
+    //ASSERT(tensor->n_dims == 3, "flip3d: Input tensor should be 3D"); //n_dims not a member anymore
 
     auto func = [] (struct ggml_tensor* dst, const struct ggml_tensor* src, int ith, int nth, void* userdata) {
         auto* dst_ptr = (T*)dst->data;
@@ -246,7 +246,7 @@ template<class T> struct ggml_tensor* flip_3d_impl(struct ggml_context* ctx, str
 
 template<class T> struct ggml_tensor* per_row_cumsum_impl(struct ggml_context* ctx, struct ggml_tensor* tensor) {
     ASSERT(tensor->ne[2] == 1, "Dim 2 == 1");
-    ASSERT(tensor->n_dims == 3, "per_row_cumsum: Input tensor should be 3D");
+    //ASSERT(tensor->n_dims == 3, "per_row_cumsum: Input tensor should be 3D"); //n_dims not a member anymore
     ggml_custom1_op_t func = [](struct ggml_tensor * dst, const struct ggml_tensor * a, int ith, int nth, void * userdata) {
         T cum = 0;
         int idx = 0;
@@ -294,7 +294,7 @@ template <class T> struct ggml_tensor* max_element_impl(struct ggml_context* ctx
 }
 
 template<class T> struct ggml_tensor* repeat_impl(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* tensor, int64_t new_dim_size, int across) {
-    ASSERT(tensor->n_dims == 1, "Only 1d tensors supported");
+    //ASSERT(tensor->n_dims == 1, "Only 1d tensors supported");//n_dims not a member anymore
     ASSERT(across == 0 || across == 1, "Only across == 0 || 1 supported");
     std::vector<int64_t> shape = {across == 0 ? new_dim_size : tensor->ne[0], across == 1 ? new_dim_size : tensor->ne[0]};
     auto new_tensor = tensor_zeros(ctx, allocr, shape);
@@ -327,10 +327,11 @@ template<class T> struct ggml_tensor* repeat_impl(struct ggml_context* ctx, stru
 }
 
 template<class T> struct ggml_tensor* compare_impl(struct ggml_context* ctx, struct ggml_tensor* a, struct ggml_tensor* b, std::function<bool(float, float)> compare_op) {
-    ASSERT(a->n_dims == b->n_dims, "Input tensors should have the same number of dimensions");
-    ASSERT(a->ne[a->n_dims-1] == b->ne[b->n_dims-1], "Input tensors should have the same size on the first dimension");
+    //ASSERT(a->n_dims == b->n_dims, "Input tensors should have the same number of dimensions");//n_dims not a member anymore
+    //ASSERT(a->ne[a->n_dims-1] == b->ne[b->n_dims-1], "Input tensors should have the same size on the first dimension"); //n_dims not a member anymore
 
-    if (a->ne[0] != b->ne[0] && a->n_dims == 2)
+    //if (a->ne[0] != b->ne[0] && a->n_dims == 2)//n_dims not a member anymore
+    if (a->ne[0] != b->ne[0] && ggml_n_dims(a) == 2)
         a = ggml_repeat(ctx, a, b);
 
     auto compare_op_heap = new std::function<bool(T, T)>(compare_op);
@@ -357,8 +358,8 @@ template<class T> struct ggml_tensor* compare_impl(struct ggml_context* ctx, str
 }
 
 template<class T> struct ggml_tensor* set_inplace_impl(struct ggml_context* ctx, struct ggml_tensor* tensor, struct ggml_tensor* values, int start0, int start1, int start2) {
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
-    ASSERT(values->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
+    //ASSERT(values->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     ASSERT(start0 + values->ne[0] <= tensor->ne[0], "Invalid start0 index");
     ASSERT(start1 + values->ne[1] <= tensor->ne[1], "Invalid start1 index");
     ASSERT(start2 + values->ne[2] <= tensor->ne[2], "Invalid start2 index");
@@ -395,9 +396,9 @@ template<class T> struct ggml_tensor* set_inplace_impl(struct ggml_context* ctx,
 }
 
 template<class T> struct ggml_tensor* add_bias_inplace_impl(struct ggml_context* ctx, struct ggml_tensor* tensor, struct ggml_tensor* bias) {
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
     ASSERT(tensor->ne[1] == bias->ne[0], "Can only broadcast add across second dimension");
-    ASSERT(bias->n_dims == 1, "Only support 1d bias tensors");
+    //ASSERT(bias->n_dims == 1, "Only support 1d bias tensors");//n_dims not a member anymore
     ASSERT(ggml_is_contiguous(tensor), "Input tensor should be contiguous");
     ggml_custom2_op_t func = [](struct ggml_tensor * dst, const struct ggml_tensor * src0, const struct ggml_tensor * src1, int ith, int nth, void * userdata) {
         START_BENCH()
@@ -516,7 +517,7 @@ void execute_conv1d_fp16(struct ggml_tensor * dst, const struct ggml_tensor * in
 };
 
 struct ggml_tensor* conv_1d_inplace_impl_fp16(struct ggml_context* ctx, struct ggml_tensor* inputs, struct ggml_tensor* weights, int stride = 1, int padding = 0, int dilation= 1) {
-    ASSERT(weights->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(weights->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     ASSERT(weights->type == GGML_TYPE_F16, "Only support f16 tensors");
     ASSERT(inputs->type == GGML_TYPE_F16, "Only support f16 tensors");
     ASSERT(ggml_is_contiguous(inputs), "Input tensor should be contiguous");
@@ -681,7 +682,7 @@ struct ggml_tensor* conv1d_impl(struct ggml_context* ctx, struct ggml_tensor* we
     //ASSERT(weights->type == GGML_TYPE_F32, "conv1d: only support f16 tensors");
     ASSERT(inputs->type == GGML_TYPE_F32, "conv1d: only support f32 tensors");
 
-    struct ggml_tensor * im2col = ggml_im2col_1d(ctx, weights, inputs, stride, padding, dilation);
+    struct ggml_tensor * im2col = ggml_im2col(ctx, weights, inputs, stride, 0, padding, 0, dilation, 0, false, weights->type == GGML_TYPE_F16 ? GGML_TYPE_F16 : GGML_TYPE_F32);
     auto ic_by_k = (weights->ne[0] * weights->ne[1]);
 
     struct ggml_tensor * result =
@@ -737,8 +738,8 @@ struct ggml_tensor* broadcast_if_possible(struct ggml_context* ctx, struct ggml_
 }
 
 template<class T> struct ggml_tensor* masked_get_impl(struct ggml_context* ctx, struct ggml_tensor* tensor, struct ggml_tensor* mask) {
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
-    ASSERT(mask->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
+    //ASSERT(mask->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     mask = broadcast_if_possible(ctx, tensor, mask);
     ASSERT(ggml_nelements(tensor) == ggml_nelements(mask), "masked_get: should have same elements");
 
@@ -762,13 +763,13 @@ template<class T> struct ggml_tensor* masked_get_impl(struct ggml_context* ctx, 
 }
 
 template<class T> struct ggml_tensor* gather_impl(struct ggml_context* ctx, struct ggml_tensor* tensor, int dim, struct ggml_tensor* index) {
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
-    ASSERT(index->n_dims == 1, "Only support 1d tensors for the index");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
+    //ASSERT(index->n_dims == 1, "Only support 1d tensors for the index");//n_dims not a member anymore
     ASSERT(dim == 0, "Only dim == 0 supported");
 
     ggml_custom2_op_t func = [](struct ggml_tensor * dst, const struct ggml_tensor * index_tensor, const struct ggml_tensor * values_tensor, int ith, int nth, void * userdata) {
         auto values_ptr = (T*) values_tensor->data;
-        ASSERT(dst->n_dims == 1, "Only support 1d tensors");
+        //ASSERT(dst->n_dims == 1, "Only support 1d tensors");//n_dims not a member anymore
         ASSERT(dst->ne[0] == index_tensor->ne[0], "Index and output mismatch");
         START_BENCH()
         for(int i = 0; i < index_tensor->ne[0]; ++i)
@@ -827,8 +828,8 @@ template<class T> struct ggml_tensor* set_zero_impl(struct ggml_context* ctx, st
 }
 
 template<class T> struct ggml_tensor* masked_set_impl(struct ggml_context* ctx, struct ggml_tensor* tensor, struct ggml_tensor* mask, struct ggml_tensor* value) {
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
-    ASSERT(mask->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
+    //ASSERT(mask->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     mask = broadcast_if_possible(ctx, tensor, mask);
     ASSERT(ggml_nelements(tensor) == ggml_nelements(mask) , "masked_set: tensor and mask should have same elements");
     ASSERT(ggml_nelements(mask) == ggml_nelements(value), "masked_set: mask and values should have same elements");
@@ -971,7 +972,7 @@ struct ggml_tensor* tensor_add_fast(struct ggml_context* ctx, struct ggml_tensor
 }
 
 struct ggml_tensor* tensor_expand(struct ggml_context* ctx, struct ggml_tensor* tensor, int stride, int dim) {
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     ASSERT(dim == 0, "Only support dim 0");
     auto new_tensor = ggml_new_tensor_3d(ctx, tensor->type, tensor->ne[0] * stride, tensor->ne[1], tensor->ne[2]);
     auto storage = new int[3]{stride, 1, 1};

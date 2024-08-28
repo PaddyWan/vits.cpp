@@ -135,14 +135,14 @@ struct ggml_tensor* linear_with_bias(struct ggml_context* ctx, struct ggml_tenso
 }
 
 struct ggml_tensor* conv1d(struct ggml_context* ctx, struct ggml_tensor* input, struct ggml_tensor* proj_weights, int stride = 1, int padding = 0, int dilation= 1) {
-    ASSERT(input->n_dims == 3, "Conv only supported on 3d tensors");
+    //ASSERT(input->n_dims == 3, "Conv only supported on 3d tensors");//n_dims not a member anymore
     //auto proj_weights_fp16 = cast_tensor(ctx, proj_weights, GGML_TYPE_F16);
     return tensor_conv_1d(ctx, input, proj_weights, stride, padding, dilation);
     //return ggml_conv_1d(ctx, proj_weights_fp16, input, stride, padding, dilation);
 }
 
 struct ggml_tensor* depthwise_conv_with_bias(struct ggml_context* ctx, struct ggml_tensor* input, struct ggml_tensor* proj_weights, struct ggml_tensor* proj_bias, int stride = 1, int padding = 0, int dilation= 1) {
-    ASSERT(input->n_dims == 3, "Depth conv only supported on 3d tensors");
+    //ASSERT(input->n_dims == 3, "Depth conv only supported on 3d tensors");//n_dims not a member anymore
     auto groups_input = input->ne[1];
     auto groups_weights = proj_weights->ne[2];
     //printf("groups_input = %d, groups_weights = %d\n", groups_input, groups_weights);
@@ -176,7 +176,7 @@ struct ggml_tensor* conv1d_with_bias(struct ggml_context* ctx, struct ggml_tenso
 }
 
 struct ggml_tensor* conv_transpose_1d_with_bias(struct ggml_context* ctx, struct ggml_tensor* input, struct ggml_tensor* proj_weights, struct ggml_tensor* proj_bias, int stride = 1, int padding = 0, int dilation= 1) {
-    ASSERT(input->n_dims == 3, "Depth conv only supported on 3d tensors");
+    //ASSERT(input->n_dims == 3, "Depth conv only supported on 3d tensors");//n_dims not a member anymore
     ASSERT(dilation == 1, "Dilation not supported");
 
     auto kernel_size = proj_weights->ne[0];
@@ -260,7 +260,7 @@ struct std::tuple<ggml_tensor*, ggml_tensor*, ggml_tensor*> vits_model::text_enc
     auto _0 = model->use("text_encoder");
 
     cur = ggml_get_rows(ctx, model->get("embed_tokens.weight"), input_ids);
-    cur = ggml_scale(ctx, cur, ggml_new_f32(ctx, (float)sqrt(hidden_size)));
+    cur = ggml_scale(ctx, cur, (float)sqrt(hidden_size));
     cur = cast_tensor(ctx, cur, DEFAULT_TENSOR_TYPE);
 
     for (int i = 0; i < layer_count; i++) {
@@ -294,7 +294,7 @@ struct std::tuple<ggml_tensor*, ggml_tensor*, ggml_tensor*> vits_model::text_enc
 
             // Scaling the query_states (Assuming `scaling` is a float or double type variable you have)
             float scaling = std::pow(head_dim, -0.5);
-            query = ggml_scale(ctx, query, ggml_new_f32(ctx, scaling));
+            query = ggml_scale(ctx, query, scaling);
 
             auto query_states = shape_attn(ctx, query, head_dim, num_heads, tgt_len);
             auto key_states = shape_attn(ctx, key, head_dim, num_heads, value->ne[1]);
@@ -366,8 +366,8 @@ struct std::tuple<ggml_tensor*, ggml_tensor*, ggml_tensor*> vits_model::text_enc
             auto _ = model->use("layer_norm");
             cur = ggml_add(ctx, residual, cur);
             cur = layer_norm(ctx, cur, model->get("weight"), model->get("bias"), layer_norm_eps);
-            if (cur->n_dims == 2)
-                cur = unsqueeze(ctx, cur, 2);
+            //if (cur->n_dims == 2)//n_dims not a member anymore
+	    //    cur = unsqueeze(ctx, cur, 2);
             ggml_format_name(cur, "result_layer_norm_%d", i);
         }
 
@@ -604,7 +604,7 @@ struct ggml_tensor* vits_model::hifigan_graph(struct ggml_context* ctx, struct g
         ASSERT(false, "Not implemented");
     }
 
-    auto scale = ggml_new_f32(ctx, (float) (1.0 / num_kernels));
+    auto scale = (float) (1.0 / num_kernels);
 
     for (int i = 0; i < num_upsamples; ++i)
     {
@@ -711,17 +711,18 @@ struct ggml_tensor* vits_model::rational_quadratic_spline(
     auto upper_bound = tail_bound;
     auto lower_bound = -tail_bound;
 
-    auto num_bins = unnormalized_widths->ne[unnormalized_widths->n_dims-1];
+    //auto num_bins = unnormalized_widths->ne[unnormalized_widths->n_dims-1];//n_dims not a member anymore
+    auto num_bins = unnormalized_widths->ne[3-1];
 
     ASSERT(min_bin_width * num_bins <= 1.0, ("Minimal bin width " + std::to_string(min_bin_width) + " too large for the number of bins " + std::to_string(num_bins)).c_str());
     ASSERT(min_bin_height * num_bins <= 1.0, ("Minimal bin height " + std::to_string(min_bin_height) + " too large for the number of bins " + std::to_string(num_bins)).c_str());
 
     auto widths = ggml_soft_max(ctx, unnormalized_widths);
-    widths = ggml_scale(ctx, widths, ggml_new_f32(ctx, min_bin_width + (1 - min_bin_width * num_bins)));
+    widths = ggml_scale(ctx, widths, min_bin_width + (1 - min_bin_width * num_bins));
     auto cumwidths = tensor_per_row_cumsum(ctx, widths);
 
     cumwidths = pad_3d(ctx, cumwidths, {0, 0, 0, 0, 1, 0});
-    cumwidths = ggml_add(ctx, ggml_scale(ctx, cumwidths, ggml_new_f32(ctx, upper_bound - lower_bound)), tensor_like(ctx, nullptr, cumwidths, lower_bound));
+    cumwidths = ggml_add(ctx, ggml_scale(ctx, cumwidths, upper_bound - lower_bound), tensor_like(ctx, nullptr, cumwidths, lower_bound));
     cumwidths = index_put_last_dim(ctx, nullptr, cumwidths, 0, lower_bound);
     cumwidths = index_put_last_dim(ctx, nullptr, cumwidths, -1, upper_bound);
 
@@ -733,11 +734,11 @@ struct ggml_tensor* vits_model::rational_quadratic_spline(
     auto derivatives = ggml_add(ctx, tensor_softplus(ctx, unnormalized_derivatives), tensor_like(ctx, nullptr, unnormalized_derivatives, min_derivative));
 
     auto heights = ggml_soft_max(ctx, unnormalized_heights);
-    heights = ggml_add(ctx, ggml_scale(ctx, heights, ggml_new_f32(ctx, (1 - min_bin_height * num_bins))), tensor_like(ctx, nullptr, heights, min_bin_height));
+    heights = ggml_add(ctx, ggml_scale(ctx, heights, (1 - min_bin_height * num_bins)), tensor_like(ctx, nullptr, heights, min_bin_height));
     auto cumheights = tensor_per_row_cumsum(ctx, heights);
 
     cumheights = pad_3d(ctx, cumheights, {0, 0, 0, 0, 1, 0});
-    cumheights = ggml_add(ctx, ggml_scale(ctx, cumheights, ggml_new_f32(ctx, upper_bound - lower_bound)), tensor_like(ctx, nullptr, cumheights, lower_bound));
+    cumheights = ggml_add(ctx, ggml_scale(ctx, cumheights, upper_bound - lower_bound), tensor_like(ctx, nullptr, cumheights, lower_bound));
     cumheights = index_put_last_dim(ctx, nullptr, cumheights, 0, lower_bound);
     cumheights = index_put_last_dim(ctx, nullptr, cumheights, -1, upper_bound);
     heights = ggml_sub(ctx,
@@ -772,7 +773,7 @@ struct ggml_tensor* vits_model::rational_quadratic_spline(
     auto input_derivatives_plus_one = tensor_gather(ctx, slice_3d(ctx, derivatives, 1, -1, 0, -1, 0, -1), 0, bin_idx);
 
     auto input_heights = tensor_gather(ctx, heights, 0, bin_idx);
-    auto intermediate1 = ggml_sub(ctx, ggml_add(ctx, input_derivatives, input_derivatives_plus_one), ggml_scale(ctx, input_delta, ggml_new_f32(ctx, 2)));
+    auto intermediate1 = ggml_sub(ctx, ggml_add(ctx, input_derivatives, input_derivatives_plus_one), ggml_scale(ctx, input_delta, 2));
     struct ggml_tensor* outputs = nullptr;
 
     if (!reverse) {
@@ -787,15 +788,15 @@ struct ggml_tensor* vits_model::rational_quadratic_spline(
         auto c = ggml_mul(ctx, ggml_neg(ctx, input_delta), intermediate2);
 
         auto b_pow = tensor_pow(ctx, b, 2);
-        auto a_4 = ggml_scale(ctx, a, ggml_new_f32(ctx, 4));
+        auto a_4 = ggml_scale(ctx, a, 4);
         auto discriminant = ggml_sub(ctx, b_pow, ggml_mul(ctx, a_4, c));
         auto root = ggml_div(ctx,
-                             ggml_scale(ctx, c, ggml_new_f32(ctx, 2)),
+                             ggml_scale(ctx, c, 2),
                              ggml_sub(ctx, ggml_neg(ctx, b), ggml_sqrt(ctx, discriminant))
         );
 
         outputs = ggml_add(ctx, ggml_mul(ctx, root, input_bin_widths), input_cumwidths);
-        ASSERT(outputs->n_dims == 1, "outputs size mismatch");
+        //ASSERT(outputs->n_dims == 1, "outputs size mismatch");//n_dims not a member anymore
         outputs = reshape_3d(ctx, outputs, outputs->ne[0], 1, 1);
     }
     return outputs;
@@ -874,7 +875,7 @@ struct ggml_tensor* vits_model::conv_flow_graph(struct ggml_context* ctx, struct
     hidden_states = ggml_permute(ctx, hidden_states, 1, 0, 2, 3);
     hidden_states = ggml_cont(ctx, hidden_states);
 
-    auto scale = ggml_new_f32(ctx, 1.0 / sqrt(filter_channels));
+    auto scale = 1.0 / sqrt(filter_channels);
     auto unnormalized_widths = ggml_scale(ctx,
                                           slice_3d(ctx, hidden_states, 0, num_bins, 0, -1, 0, -1)
                                           , scale);
@@ -946,7 +947,7 @@ struct ggml_tensor* vits_model::stochastic_duration_predictor_graph(struct ggml_
         ASSERT(reverse, "Non reverse not supported");
     } else {
         auto latents = tensor_randn(ctx, nullptr, {inputs->ne[0], 2, inputs->ne[2]});
-        latents = ggml_scale(ctx, latents, ggml_new_f32(ctx, noise_scale_duration));
+        latents = ggml_scale(ctx, latents, noise_scale_duration);
         auto len_flows = duration_predictor_num_flows; // flows + elementwise affine
 
 
@@ -992,7 +993,7 @@ struct ggml_cgraph* vits_model::build_graph_part_one(struct ggml_context* ctx, s
 
     ASSERT(config["use_stochastic_duration_prediction"] == "True", "Only stochastic duration prediction is supported");
     auto log_duration = this->stochastic_duration_predictor_graph(ctx, hidden_states, speaker_embeddings, true, noise_scale_duration);
-    auto length_scale = ggml_new_f32(ctx, 1.0 / speaking_rate);
+    auto length_scale = 1.0 / speaking_rate;
     auto duration = tensor_ceiling(ctx, ggml_scale(ctx, tensor_exponential(ctx, log_duration), length_scale));
     this->log_duration_output = log_duration;
     ASSERT_SHAPE(this->log_duration_output, input_ids->ne[0], 1, 1, 0);
@@ -1058,7 +1059,7 @@ struct ggml_cgraph* vits_model::build_graph_part_two(struct ggml_context* ctx, s
 
     auto noise = tensor_randn_like(ctx, allocr, prior_means);
     noise = ggml_mul(ctx, noise, tensor_exponential(ctx, prior_log_variances));
-    noise = ggml_scale(ctx, noise, ggml_new_f32(ctx, noise_scale));
+    noise = ggml_scale(ctx, noise, noise_scale);
 
     auto prior_latents = ggml_add(ctx, prior_means, noise);
     prior_latents = reshape_3d(ctx, prior_latents, prior_latents->ne[0], prior_latents->ne[1], 1);

@@ -14,18 +14,21 @@
 #include "custom-ops.h"
 
 struct ggml_tensor* pad_3d(struct ggml_context* ctx, struct ggml_tensor* tensor, std::vector<int> pads) {
-    ASSERT(tensor->n_dims == 3, "pad_3d: Input tensor should be 3D");
+    //ASSERT(tensor->n_dims == 3, "pad_3d: Input tensor should be 3D");//n_dims not a member anymore
     ASSERT(pads.size() == 6, "Invalid pad count");
     if (!ggml_is_contiguous(tensor))
         tensor = ggml_cont(ctx, tensor);
 
     int64_t new_shape[GGML_MAX_DIMS];
-    for(int i = 0; i < tensor->n_dims; i++) {
-        int reverse_index = (tensor->n_dims - i - 1) * 2;
+    //for(int i = 0; i < tensor->n_dims; i++) {//n_dims not a member anymore
+    for(int i = 0; i < 3; i++) {
+        //int reverse_index = (tensor->n_dims - i - 1) * 2;//n_dims not a member anymore
+	int reverse_index = (3 - i - 1) * 2;
         new_shape[i] = tensor->ne[i] + pads[reverse_index] + pads[reverse_index + 1];
     }
 
-    auto cur = ggml_new_tensor(ctx, tensor->type, tensor->n_dims, new_shape);
+    //auto cur = ggml_new_tensor(ctx, tensor->type, tensor->n_dims, new_shape);//n_dims not a member anymore
+    auto cur = ggml_new_tensor(ctx, tensor->type, 3, new_shape);
     cur = tensor_set_zero(ctx, cur);
 
     size_t nb0 = tensor->nb[0];
@@ -44,17 +47,18 @@ struct ggml_tensor* pad_3d(struct ggml_context* ctx, struct ggml_tensor* tensor,
 // FIX TODO THIS IS CAN BE SIMPLIFIED ON A GENERIC PAD
 struct ggml_tensor* pad_2d(struct ggml_context* ctx, struct ggml_tensor* tensor, std::vector<int> pads) {
     // Assure the correct number of pads
-    ASSERT(tensor->n_dims == pads.size() / 2, "Invalid pad count");
+    //ASSERT(tensor->n_dims == pads.size() / 2, "Invalid pad count");//n_dims not a member anymore
+    const int tensor_n_dims = pads.size() / 2;
     if (!ggml_is_contiguous(tensor))
         tensor = ggml_cont(ctx, tensor);
 
     int64_t new_shape[GGML_MAX_DIMS];
-    for(int i = 0; i < tensor->n_dims; i++) {
-        int reverse_index = (tensor->n_dims - i - 1) * 2;
+    for(int i = 0; i < tensor_n_dims; i++) {
+        int reverse_index = (tensor_n_dims - i - 1) * 2;
         new_shape[i] = tensor->ne[i] + pads[reverse_index] + pads[reverse_index + 1];
     }
 
-    auto cur = ggml_new_tensor(ctx, tensor->type, tensor->n_dims, new_shape);
+    auto cur = ggml_new_tensor(ctx, tensor->type, tensor_n_dims, new_shape);
     cur = tensor_set_zero(ctx, cur);
 
     size_t nb0 = tensor->nb[0];
@@ -75,7 +79,7 @@ struct ggml_tensor* slice_3d(struct ggml_context* ctx, struct ggml_tensor* tenso
                              int start0, int end0,
                              int start1, int end1,
                              int start2, int end2, bool view = false) {
-    ASSERT(tensor->n_dims == 3, "slice_3d: Input tensor should be 3D");
+    //ASSERT(tensor->n_dims == 3, "slice_3d: Input tensor should be 3D");//n_dims not a member anymore
     if (!ggml_is_contiguous(tensor))
         tensor = ggml_cont(ctx, tensor);
 
@@ -106,7 +110,8 @@ struct ggml_tensor* slice_3d(struct ggml_context* ctx, struct ggml_tensor* tenso
     if (view)
         return sliced_view;
 
-    auto cur = ggml_new_tensor(ctx, tensor->type, tensor->n_dims, new_shape);
+    //auto cur = ggml_new_tensor(ctx, tensor->type, tensor->n_dims, new_shape);//n_dims not a member anymore
+    auto cur = ggml_new_tensor(ctx, tensor->type, 3, new_shape);
     //cur = tensor_set_zero(ctx, cur);
     cur = ggml_cpy(ctx, sliced_view, cur);
     ggml_format_name(cur, "%s_sliced_copy_[%d:%d, %d:%d, %d:%d]", tensor->name, start0, end0, start1, end1, start2, end2);
@@ -122,7 +127,8 @@ struct ggml_tensor* slice_2d(struct ggml_context* ctx, struct ggml_tensor* tenso
 
 struct ggml_tensor* cast_tensor_fp32_to_fp16(struct ggml_context* ctx, struct ggml_tensor* tensor) {
     ASSERT(tensor->type == GGML_TYPE_F32, "Input tensor needs to be fp32");
-    struct ggml_tensor* target = ggml_new_tensor(ctx, GGML_TYPE_F16, tensor->n_dims, tensor->ne);
+    //struct ggml_tensor* target = ggml_new_tensor(ctx, GGML_TYPE_F16, tensor->n_dims, tensor->ne);//n_dims not a member anymore
+    struct ggml_tensor* target = ggml_new_tensor(ctx, GGML_TYPE_F16, ggml_n_dims(tensor), tensor->ne);
     auto output = ggml_cpy(ctx, tensor, target);
     ASSERT(output->type == GGML_TYPE_F16, "Output tensor needs to be fp16");
     return output;
@@ -130,7 +136,8 @@ struct ggml_tensor* cast_tensor_fp32_to_fp16(struct ggml_context* ctx, struct gg
 
 struct ggml_tensor* cast_tensor_fp16_to_fp32(struct ggml_context* ctx, struct ggml_tensor* tensor) {
     ASSERT(tensor->type == GGML_TYPE_F16, "Input tensor needs to be fp16");
-    struct ggml_tensor* target = ggml_new_tensor(ctx, GGML_TYPE_F32, tensor->n_dims, tensor->ne);
+    //struct ggml_tensor* target = ggml_new_tensor(ctx, GGML_TYPE_F32, tensor->n_dims, tensor->ne);//n_dims not a member anymore
+    struct ggml_tensor* target = ggml_new_tensor(ctx, GGML_TYPE_F32, ggml_n_dims(tensor), tensor->ne);
     auto output = ggml_cpy(ctx, tensor, target);
     ASSERT(output->type == GGML_TYPE_F32, "Output tensor needs to be fp32");
     return output;
@@ -138,7 +145,7 @@ struct ggml_tensor* cast_tensor_fp16_to_fp32(struct ggml_context* ctx, struct gg
 
 
 std::pair<struct ggml_tensor*, struct ggml_tensor*> split_3d(struct ggml_context* ctx, struct ggml_tensor* tensor, int left, int right, int dim) {
-    ASSERT(tensor->n_dims == 3, "split3d: Input tensor should be 3D");
+    //ASSERT(tensor->n_dims == 3, "split3d: Input tensor should be 3D");//n_dims not a member anymore
     ASSERT(left + right == tensor->ne[dim], "Left and right should sum to the dimension size");
 
     if (!ggml_is_contiguous(tensor))
@@ -163,8 +170,8 @@ std::pair<struct ggml_tensor*, struct ggml_tensor*> split_3d(struct ggml_context
 }
 
 struct ggml_tensor* concat_3d(struct ggml_context* ctx, struct ggml_tensor* a, struct ggml_tensor* b, int dim) {
-    ASSERT(a->n_dims == 3, "Input B tensor should be 3D");
-    ASSERT(b->n_dims == 3, "Input A tensor should be 3D");
+    //ASSERT(a->n_dims == 3, "Input B tensor should be 3D");//n_dims not a member anymore
+    //ASSERT(b->n_dims == 3, "Input A tensor should be 3D");//n_dims not a member anymore
     for (int i = 0; i < 3; ++i) {
         if (i != dim)
             ASSERT(a->ne[i] == b->ne[i], "a and b should have the same dimension on all dimensions except the concat dimension");
@@ -177,7 +184,9 @@ struct ggml_tensor* concat_3d(struct ggml_context* ctx, struct ggml_tensor* a, s
             dim == 1 ? a->ne[1] + b->ne[1] : a->ne[1],
             a->ne[2]
     };
-    struct ggml_tensor* result = ggml_new_tensor(ctx, a->type, a->n_dims, new_shape);
+    //struct ggml_tensor* result = ggml_new_tensor(ctx, a->type, a->n_dims, new_shape);//n_dims not a member anymore
+    struct ggml_tensor* result = ggml_new_tensor(ctx, a->type, 3, new_shape);
+    
     //result = tensor_set_zero(ctx, result);
     auto a_set = tensor_set_inplace(ctx, result, a, 0, 0, 0);
     auto b_set = tensor_set_inplace(ctx, a_set, b, dim == 0 ? a->ne[0] : 0, dim == 1 ? a->ne[1] : 0, 0);
@@ -200,7 +209,8 @@ struct ggml_tensor* tensor_randn(struct ggml_context* ctx, struct ggml_allocr* a
 
 struct ggml_tensor* tensor_randn_like(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* other) {
     std::vector<int64_t> dims;
-    for (int i = 0; i < other->n_dims; ++i) {
+    //for (int i = 0; i < other->n_dims; ++i) {//n_dims not a member anymore
+    for (int i = 0; i < ggml_n_dims(other); ++i) {
         dims.push_back(other->ne[i]);
     }
     return tensor_randn(ctx, allocr, dims);
@@ -208,7 +218,8 @@ struct ggml_tensor* tensor_randn_like(struct ggml_context* ctx, struct ggml_allo
 
 struct ggml_tensor* tensor_like(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* other, float value) {
     std::vector<int64_t> shape;
-    for (auto i = 0; i < other->n_dims; ++i) {
+    //for (auto i = 0; i < other->n_dims; ++i) {//n_dims not a member anymore
+    for (auto i = 0; i < ggml_n_dims(other); ++i) {
         shape.push_back(other->ne[i]);
     }
     return tensor_shaped_like(ctx, allocr, other->type, shape, value);
@@ -223,7 +234,8 @@ struct ggml_tensor* zeros_like(struct ggml_context* ctx, struct ggml_allocr* all
 }
 
 struct ggml_tensor* tensor_detach(struct ggml_context* ctx, struct ggml_tensor* tensor) {
-    auto detached = ggml_new_tensor(ctx, tensor->type, tensor->n_dims, tensor->ne);
+    //auto detached = ggml_new_tensor(ctx, tensor->type, tensor->n_dims, tensor->ne);//n_dims not a member anymore
+    auto detached = ggml_new_tensor(ctx, tensor->type, ggml_n_dims(tensor), tensor->ne);
     ASSERT(!ggml_get_no_alloc(ctx), "Cannot detach tensor when no alloc is set");
     memcpy(detached->data, tensor->data, ggml_nelements(tensor) * ggml_element_size(tensor));
     return detached;
@@ -231,7 +243,7 @@ struct ggml_tensor* tensor_detach(struct ggml_context* ctx, struct ggml_tensor* 
 
 struct ggml_tensor* index_put_last_dim(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* tensor, int index, float value) {
     // our index is actually 0
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     auto offset = tensor->nb[0] * index;
     auto view = ggml_view_3d(ctx, tensor, 1, tensor->ne[1], tensor->ne[2], tensor->nb[1], tensor->nb[2], offset);
     auto new_values = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, tensor->ne[1] * tensor->ne[2]);
@@ -248,7 +260,7 @@ struct ggml_tensor* index_put_last_dim(struct ggml_context* ctx, struct ggml_all
 }
 
 struct ggml_tensor* index_add_last_dim(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* tensor, int index, float value) {
-    ASSERT(tensor->n_dims == 3, "Only support 3d tensors");
+    //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     auto offset = tensor->nb[0] * index;
     auto view = ggml_view_3d(ctx, tensor, 1, tensor->ne[1], tensor->ne[2], tensor->nb[1], tensor->nb[2], offset);
     auto new_values = ggml_new_tensor_3d(ctx, DEFAULT_TENSOR_TYPE, 1, tensor->ne[1], tensor->ne[2]);
@@ -292,27 +304,29 @@ struct ggml_tensor* reshape_4d(struct ggml_context* ctx, struct ggml_tensor* ten
 struct ggml_tensor* cast_tensor(struct ggml_context* ctx, struct ggml_tensor* tensor, ggml_type to) {
     if (tensor->type == to) return tensor;
 
-    struct ggml_tensor* target = ggml_new_tensor(ctx, to, tensor->n_dims, tensor->ne);
+    //struct ggml_tensor* target = ggml_new_tensor(ctx, to, tensor->n_dims, tensor->ne);//n_dims not a member anymore
+    struct ggml_tensor* target = ggml_new_tensor(ctx, to, ggml_n_dims(tensor), tensor->ne);
     //target = tensor_set_zero(ctx, target);
     return ggml_cpy(ctx, tensor, target);
 }
 
 struct ggml_tensor* unsqueeze(struct ggml_context* ctx, struct ggml_tensor* tensor, int dim) {
-    if (tensor->n_dims == 1) {
+    //n_dims not a member anymore
+    if (ggml_n_dims(tensor) == 1) {
         if (dim == 0)
             tensor = ggml_view_2d(ctx, tensor, 1, tensor->ne[0], tensor->nb[1], 0);
         else if (dim == 1)
             tensor = ggml_view_2d(ctx, tensor, tensor->ne[0], 1, tensor->nb[1], 0);
         else
             ASSERT(false, "Invalid dim");
-    } else if (tensor->n_dims == 2) {
+    } else if (ggml_n_dims(tensor) == 2) {
         if (dim == 0)
             tensor = ggml_view_3d(ctx, tensor, 1, tensor->ne[0], tensor->ne[1], tensor->nb[1], tensor->nb[2], 0);
         else if (dim == 2)
             tensor = ggml_view_3d(ctx, tensor, tensor->ne[0], tensor->ne[1], 1, tensor->nb[1], tensor->nb[2], 0);
         else
             ASSERT(false, "Invalid dim");
-    } else if (tensor->n_dims == 3) {
+    } else if (ggml_n_dims(tensor) == 3) {
         if (dim == 0)
             tensor = ggml_view_4d(ctx, tensor, 1, tensor->ne[0], tensor->ne[1], tensor->ne[2], tensor->nb[1], tensor->nb[2], tensor->nb[3], 0);
         else if (dim == 1)
@@ -330,13 +344,14 @@ struct ggml_tensor* unsqueeze(struct ggml_context* ctx, struct ggml_tensor* tens
 }
 
 struct ggml_tensor* squeeze(struct ggml_context* ctx, struct ggml_tensor* tensor, int dim) {
-    if (tensor->n_dims == 2) {
+    //n_dims not a member anymore
+    if (ggml_n_dims(tensor) == 2) {
         if ((dim == 0 && tensor->ne[0] == 1) || (dim == 1 && tensor->ne[1] == 1)) {
             tensor = ggml_view_1d(ctx, tensor, tensor->ne[1], 0);
         } else {
             ASSERT(false, "Invalid squeeze dimension or non-squeezable dimension");
         }
-    } else if (tensor->n_dims == 3) {
+    } else if (ggml_n_dims(tensor) == 3) {
         if (dim == 0 && tensor->ne[0] == 1) {
             tensor = ggml_view_2d(ctx, tensor, tensor->ne[1], tensor->ne[2], tensor->nb[2], 0);
         } else if (dim == 1 && tensor->ne[1] == 1) {
@@ -346,7 +361,7 @@ struct ggml_tensor* squeeze(struct ggml_context* ctx, struct ggml_tensor* tensor
         } else {
             ASSERT(false, "Invalid squeeze dimension or non-squeezable dimension");
         }
-    } else if (tensor->n_dims == 4) {
+    } else if (ggml_n_dims(tensor) == 4) {
         if (dim == 0 && tensor->ne[0] == 1) {
             tensor = ggml_view_3d(ctx, tensor, tensor->ne[1], tensor->ne[2], tensor->ne[3], tensor->nb[2],
                                   tensor->nb[3], 0);

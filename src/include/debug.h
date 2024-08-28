@@ -15,9 +15,9 @@
 #define SHAPE(tensor) \
 do { \
     printf("Shape '%s' [%s] (%d):", #tensor, tensor->name, tensor->type); \
-    for (int i = 0; i < tensor->n_dims; i++) { \
+    for (int i = 0; i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor); i++) { \
         printf(" %lld", tensor->ne[i]); \
-        if(i < tensor->n_dims - 1) { \
+        if(i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor) - 1) { \
             printf(" x"); \
         } \
     } \
@@ -54,8 +54,8 @@ void print_stack_trace();
             if (i != tensor->n_dims - 1) printf(", "); \
         } \
         printf(")\n");*/                                   \
-        ASSERT(tensor->n_dims == expected_shape.size(), "Shape len mismatch"); \
-        for (int i = 0; i < tensor->n_dims; ++i) { \
+        /*ASSERT(tensor->n_dims == expected_shape.size(), "Shape len mismatch");*/  /*n_dims not a member anymore*/ \
+        for (int i = 0; i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ expected_shape.size(); ++i) { \
             ASSERT(tensor->ne[i] == expected_shape[i], "Shape mismatch"); \
         } \
 } while(0);
@@ -134,13 +134,13 @@ void print_stack_trace();
             continue; \
         } \
         printf("Shape: "); \
-        for(int i = 0; i < tensor->n_dims; i++) { \
+        for(int i = 0; i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor); i++) { \
             printf("%d", tensor->ne[i]); \
-            if(i < tensor->n_dims - 1) printf(" x "); \
+            if(i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor) - 1) printf(" x "); \
         } \
         printf("\nData:\n"); \
         int total_elements = 1; \
-        for(int i = 0; i < tensor->n_dims; i++) { \
+        for(int i = 0; i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor); i++) { \
             total_elements *= tensor->ne[i]; \
         } \
         if(tensor->type == GGML_TYPE_F32) { \
@@ -176,13 +176,13 @@ void print_stack_trace();
             std::cerr << "Error fetching data for tensor " << name << std::endl; \
             continue; \
         } \
-        outfile << tensor->n_dims; \
-        for(int i = 0; i < tensor->n_dims; i++) { \
+        outfile << /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor); \
+        for(int i = 0; i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor); i++) { \
             outfile << " " << tensor->ne[i]; \
         } \
         outfile << std::endl; \
         int total_elements = 1; \
-        for(int i = 0; i < tensor->n_dims; i++) { \
+        for(int i = 0; i < /*tensor->n_dims*/ /*n_dims not a member anymore*/ ggml_n_dims(tensor); i++) { \
             total_elements *= tensor->ne[i]; \
         } \
         for(int i = 0; i < total_elements; i++) { \
