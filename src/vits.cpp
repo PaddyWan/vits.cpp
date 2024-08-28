@@ -1190,6 +1190,16 @@ std::vector<float> vits_model::process(std::string text, int threads) {
     return data;
 }
 
+size_t vits_model::sample_rate() const
+{
+    using namespace std::string_literals;
+    //this->log("Loading param for key: sampling_rate\n", key.c_str()); //we are const, log is not const
+    auto sampling_rate_str_it = model->config.find("sampling_rate"s);
+    if(sampling_rate_str_it == model->config.end())
+	return 16000; //default frequency
+    return std::stoi(sampling_rate_str_it->second);
+}
+
 vits_model * vits_model_load_from_file(const char * path) {
     struct ggml_init_params params = {
             .mem_size   = (size_t)256*1024*1024,
