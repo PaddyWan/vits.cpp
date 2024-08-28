@@ -22,7 +22,7 @@ public:
     int convert_token_to_id(const std::string& token);
 
     static std::unique_ptr<vits_tokenizer> load(std::istream& file);
-    void set_phonetic();
+    void set_phonetic(const char* language);
 
 private:
     std::unordered_map<std::string, int32_t> vocab;

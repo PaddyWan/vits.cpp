@@ -158,13 +158,13 @@ std::vector<char> convert_to_phonetic(char* b, char* e)
     return ret;
 }
 
-void vits_tokenizer::set_phonetic()
+void vits_tokenizer::set_phonetic(const char* language)
 {
     if(!init_espeak)
     {
 	espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, nullptr, 0);
 	espeak_VOICE voice{nullptr, nullptr, nullptr, 0, 0};
-	voice.languages="en-us";
+	voice.languages=language;
 	espeak_ERROR result = espeak_SetVoiceByProperties(&voice);
 	ASSERT(result == EE_OK, "Espeak did not correctly initialize");
 	init_espeak = true;
@@ -173,7 +173,7 @@ void vits_tokenizer::set_phonetic()
     phonetic = true;
 }
 #else
-void vits_tokenizer::set_phonetic()
+void vits_tokenizer::set_phonetic(const char* language)
 {
     ASSERT(false, "Espeak is not available");
 }

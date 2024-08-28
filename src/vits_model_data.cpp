@@ -92,7 +92,13 @@ std::tuple<std::unordered_map<std::string, ggml_tensor*>, std::unordered_map<std
 
     auto it = config.find("phonetic");
     if(it != config.end() && it->second == "1")
-	tokenizer->set_phonetic();
+    {
+	auto it2 = config.find("language");
+	if(it2 != config.end())
+	    tokenizer->set_phonetic(it2->second.c_str());
+	else
+	    tokenizer->set_phonetic("en-us");
+    }
 
     return std::make_tuple(tensors, config, std::move(tokenizer));
 }
