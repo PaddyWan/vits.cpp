@@ -1,5 +1,4 @@
 #include "include/vits.h"
-#include <ggml/ggml-alloc.h>
 #include "include/debug.h"
 #include <memory>
 #include <thread>
@@ -9,6 +8,43 @@
 #include <cstdarg>
 #include <cstdio>
 #define VITS_DEBUG 0
+
+
+ggml_backend* backend;
+
+void vits_init_backend(int threads)
+{
+    backend = ggml_backend_cpu_init();
+    if (ggml_backend_is_cpu(backend))
+	ggml_backend_cpu_set_n_threads(backend, threads);
+}
+void vits_free_backend()
+{
+    ggml_backend_free(backend);
+}
+
+
+//values got by trial and error
+constexpr static size_t weight_context_size()
+{
+    return static_cast<size_t>(72)*1024*1024;
+}
+constexpr static size_t shared_context_size(size_t input_size)
+{
+    return input_size*1600+1600;
+}
+constexpr static size_t graph_one_context_size(size_t input_size)
+{
+    return input_size*input_size*800+input_size*360000+16000000;
+}
+constexpr static size_t graph_two_context_size()
+{
+    return 638976;
+}
+constexpr static size_t graph_two_alloc_size(size_t input_size)
+{
+    return input_size*512*1024 + 1024*1024;
+}
 
 vits_model::vits_model(struct ggml_context* ctx, std::unique_ptr<vits_model_data> model) {
     this->weights_ctx = ctx;
@@ -449,7 +485,7 @@ struct ggml_tensor* add_tanh_sigmoid_multiply_inplace(struct ggml_context* ctx, 
     return out;
 }
 
-struct ggml_tensor* vits_model::wavenet_graph(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* inputs, struct ggml_tensor* global_conditioning) {
+struct ggml_tensor* vits_model::wavenet_graph(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* inputs, struct ggml_tensor* global_conditioning) {
     auto num_layers = this->load_number("prior_encoder_num_wavenet_layers");
     auto hidden_size = this->load_number("hidden_size");
     auto wavenet_dilation_rate = this->load_number("wavenet_dilation_rate");
@@ -497,7 +533,7 @@ struct ggml_tensor* vits_model::wavenet_graph(struct ggml_context* ctx, struct g
     return outputs;
 }
 
-std::pair<struct ggml_tensor*, struct ggml_tensor*> vits_model::flow_graph_layer(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* inputs, struct ggml_tensor* conditioning, bool reverse) {
+std::pair<struct ggml_tensor*, struct ggml_tensor*> vits_model::flow_graph_layer(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* inputs, struct ggml_tensor* conditioning, bool reverse) {
     auto half_channels = this->load_number("flow_size") / 2;
     auto [first_half, second_half] = split_3d(ctx, inputs, half_channels, half_channels, 1);
     auto hidden_states = conv1d_with_bias(ctx, first_half, this->model->get("conv_pre.weight"),
@@ -516,7 +552,7 @@ std::pair<struct ggml_tensor*, struct ggml_tensor*> vits_model::flow_graph_layer
     return std::make_pair(cur, nullptr);
 }
 
-struct ggml_tensor* vits_model::flow_graph(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* inputs, struct ggml_tensor* conditioning, bool reverse) {
+struct ggml_tensor* vits_model::flow_graph(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* inputs, struct ggml_tensor* conditioning, bool reverse) {
     ASSERT(reverse, "Non reverse not supported");
 
     auto _0 = model->use("flow");
@@ -580,7 +616,7 @@ struct ggml_tensor* vits_model::hifigan_residual_block_graph(struct ggml_context
     return residual;
 }
 
-struct ggml_tensor* vits_model::hifigan_graph(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor * spectogram, struct ggml_tensor* global_conditioning) {
+struct ggml_tensor* vits_model::hifigan_graph(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor * spectogram, struct ggml_tensor* global_conditioning) {
     auto _ = model->use("decoder");
     std::vector<int> upsample_rates = this->load_vector<int>("upsample_rates");
     auto upsample_kernel_sizes = this->load_vector<int>("upsample_kernel_sizes");
@@ -1019,7 +1055,7 @@ struct ggml_cgraph* vits_model::build_graph_part_one(struct ggml_context* ctx, s
     return gf;
 }
 
-struct ggml_cgraph* vits_model::build_graph_part_two(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* input_ids, struct ggml_tensor * cum_duration, struct ggml_tensor* prior_means, struct ggml_tensor* prior_log_variances, struct ggml_tensor* speaker_embeddings, int predicted_length) {
+struct ggml_cgraph* vits_model::build_graph_part_two(struct ggml_context* ctx, ggml_tallocr* allocr, struct ggml_tensor* input_ids, struct ggml_tensor * cum_duration, struct ggml_tensor* prior_means, struct ggml_tensor* prior_log_variances, struct ggml_tensor* speaker_embeddings, int predicted_length) {
     this->log("Building graph part two, output_length %d\n", predicted_length);
     auto start = std::chrono::high_resolution_clock::now();
     auto config = this->model->config;
@@ -1080,49 +1116,29 @@ struct ggml_cgraph* vits_model::build_graph_part_two(struct ggml_context* ctx, s
     return gf;
 }
 
-void vits_model::execute_graph(struct ggml_context* ctx, struct ggml_cgraph* graph, int threads) {
-    log("Allocating memory for work computation graph...\n");
-    auto plan = ggml_graph_plan(graph, threads);
-    if (plan.work_size > 0) {
-        plan.work_data = (uint8_t*) malloc(plan.work_size);
-    }
-    log("Computing with %f mb ...\n", plan.work_size / MEGABYTE);
-    auto start = std::chrono::high_resolution_clock::now();
-    ggml_graph_compute(graph, &plan);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    free(plan.work_data);
-#ifdef GGML_PERF
-    //ggml_graph_print(graph);
-#endif
-    log("Computation took %lld milliseconds\n", delta);
-}
-
-std::vector<float> vits_model::process(std::string text, int threads) {
+std::vector<float> vits_model::process(std::string text) {
 #if VITS_DEBUG
     auto debug_mode = true;
 #else
     auto debug_mode = false;
-#endif
-    struct ggml_context * shared_ctx = ggml_init({.mem_size   = (size_t)64 * MEGABYTE, .mem_buffer = nullptr});
-
+#endif    
     std::vector<int32_t> input_ids = model->tokenizer->tokenize(text);
+    struct ggml_context * shared_ctx = ggml_init({.mem_size   = shared_context_size(input_ids.size()), .mem_buffer = nullptr});
+
     auto input_ids_tensor = ggml_new_tensor_1d(shared_ctx, GGML_TYPE_I32, input_ids.size());
     memcpy(input_ids_tensor->data, input_ids.data(), ggml_element_size(input_ids_tensor) * input_ids.size());
 
     struct ggml_tensor* speaker_embeddings = nullptr;
 
-    struct ggml_context * graph_one_ctx = ggml_init({.mem_size   = (size_t)384 * MEGABYTE, .mem_buffer = nullptr});
+    struct ggml_context * graph_one_ctx = ggml_init({.mem_size   = graph_one_context_size(input_ids.size()), .mem_buffer = nullptr});
 
-    auto start = std::chrono::high_resolution_clock::now();
-    auto delta = 0;
-    auto graph_one = this->build_graph_part_one(graph_one_ctx, input_ids_tensor, speaker_embeddings);
-    delta += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-    log("Building graph one took %d milliseconds\n", delta);
-
-    start = std::chrono::high_resolution_clock::now();
-    this->execute_graph(graph_one_ctx, graph_one, threads);
-    delta += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
+    ggml_cgraph* graph_one = this->build_graph_part_one(graph_one_ctx, input_ids_tensor, speaker_embeddings);
+    {
+	//ggml_gallocr* allocr = ggml_gallocr_new(ggml_backend_get_default_buffer_type(backend));
+	//ggml_gallocr_alloc_graph(allocr, graph_one);
+	ggml_backend_graph_compute(backend, graph_one);
+	//ggml_gallocr_free(allocr);
+    }
 
 #if VITS_DEBUG
     PRINT_TENSOR2(predicted_lengths_output);
@@ -1140,12 +1156,8 @@ std::vector<float> vits_model::process(std::string text, int threads) {
     auto prior_means_output_detached = tensor_detach(shared_ctx, this->prior_means_output);
 
     ggml_free(graph_one_ctx);
-
-    size_t compute_buffer_size = (size_t)512 * MEGABYTE;
-    std::vector<uint8_t> compute_buffer(compute_buffer_size);
-    struct ggml_allocr* allocr = ggml_allocr_new(compute_buffer.data(), compute_buffer_size, GGML_MEM_ALIGN);
-
-    size_t buf_size = (size_t)16 * MEGABYTE;
+    
+    size_t buf_size = graph_two_context_size();
     std::vector<uint8_t> buf(buf_size);
     struct ggml_init_params params = {
             /*.mem_size   =*/ buf_size,
@@ -1155,39 +1167,24 @@ std::vector<float> vits_model::process(std::string text, int threads) {
 
     struct ggml_context * graph_two_ctx = ggml_init(params);
 
-    auto graph_two = this->build_graph_part_two(graph_two_ctx, allocr, input_ids_tensor, cum_duration_output_detached, prior_means_output_detached, prior_log_variances_output_detached, speaker_embeddings, predicted_length);
+    ggml_backend_buffer* buffer = ggml_backend_alloc_buffer(backend, graph_two_alloc_size(input_ids.size()));
+    ggml_tallocr alloc = ggml_tallocr_new(buffer);
+    ggml_cgraph* graph_two = this->build_graph_part_two(graph_two_ctx, &alloc, input_ids_tensor, cum_duration_output_detached, prior_means_output_detached, prior_log_variances_output_detached, speaker_embeddings, predicted_length);
     log("Executing graph two\n");
-    start = std::chrono::high_resolution_clock::now();
-
-    size_t alloc_size = ggml_allocr_alloc_graph(allocr, graph_two);
-    log("Allocated %f mb for graph two\n", alloc_size / (float)MEGABYTE);
-    this->execute_graph(graph_two_ctx, graph_two, threads);
-    delta += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-    //ggml_graph_dump_dot(graph_two, nullptr, "graph_two.dot");
+    std::vector<float> waveform_data;
+    {
+	ggml_gallocr* allocr = ggml_gallocr_new(ggml_backend_get_default_buffer_type(backend));
+	ggml_gallocr_alloc_graph(allocr, graph_two);
+	ggml_backend_graph_compute(backend, graph_two);
+	waveform_data = std::vector<float>((float *) this->waveform->data, (float *) this->waveform->data + ggml_nelements(this->waveform));
+	ggml_gallocr_free(allocr);
+    }
     if (this->debug_tensor != nullptr)
         PRINT_TENSOR2(this->debug_tensor);
-
-    if (debug_mode) {
-        /*ASSERT_STARTS_WITH(this->text_encoder_output, 0.1938, 0.2144, 0.1059);
-        ASSERT_STARTS_WITH(this->prior_means_output, 0.4238,  0.1439,  0.1764);
-        ASSERT_STARTS_WITH(this->prior_log_variances_output, -0.2889, -0.0325, -0.2308);
-        ASSERT_STARTS_WITH(this->log_duration_output, 3.1618, -0.1879,  0.7810);
-        ASSERT_STARTS_WITH(this->latents_output, 0.9742,  2.0036,  1.5632);
-        ASSERT_STARTS_WITH(this->waveform, -3.2723e-05, -1.2340e-05,  2.3337e-05);*/
-    }
-
-    //ASSERT(this->debug_tensor->ne[2] == 1, "Batch size must be 1");
-    //ASSERT(this->debug_tensor->type == GGML_TYPE_F32, "Type must be float32");
-
-    //if (debug_tensor != nullptr)
-    //    PRINT_TENSOR2(this->debug_tensor);
-
-    log("Total time %d milliseconds\n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
-    auto data = std::vector<float>((float *) this->waveform->data, (float *) this->waveform->data + ggml_nelements(this->waveform));
-    ggml_free(shared_ctx);
+    ggml_backend_buffer_free(buffer);
     ggml_free(graph_two_ctx);
-    ggml_allocr_free(allocr);
-    return data;
+    ggml_free(shared_ctx);
+    return waveform_data;
 }
 
 size_t vits_model::sample_rate() const
@@ -1202,7 +1199,7 @@ size_t vits_model::sample_rate() const
 
 vits_model * vits_model_load_from_file(const char * path) {
     struct ggml_init_params params = {
-            .mem_size   = (size_t)256*1024*1024,
+	    .mem_size   = weight_context_size(),
             .mem_buffer = nullptr,
     };
 
@@ -1214,7 +1211,7 @@ vits_model * vits_model_load_from_file(const char * path) {
 
 vits_model * vits_model_load_from_bytes(const char * bytes, size_t size) {
     struct ggml_init_params params = {
-            .mem_size   = (size_t)256*1024*1024,
+            .mem_size   = weight_context_size(),
             .mem_buffer = nullptr,
     };
 
@@ -1232,8 +1229,8 @@ void vits_free_result(vits_result result) {
     delete[] result.data;
 }
 
-vits_result vits_model_process(vits_model * model, const char * text, int threads) {
-    std::vector<float> samples = model->process(text, threads);
+vits_result vits_model_process(vits_model * model, const char * text) {
+    std::vector<float> samples = model->process(text);
     vits_result r;
     r.data = new float[samples.size()];
     r.size = samples.size();

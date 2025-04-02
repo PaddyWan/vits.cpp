@@ -6,7 +6,7 @@
 #define VITS_CPP_VITS_MODEL_DATA_H
 
 #include <string>
-#include <ggml/ggml.h>
+#include <ggml.h>
 #include <unordered_map>
 #include <vector>
 #include <memory>

@@ -5,7 +5,7 @@
 #ifndef VITS_CUSTOM_OPS_H
 #define VITS_CUSTOM_OPS_H
 
-#include <ggml/ggml.h>
+#include <ggml.h>
 #include "debug.h"
 #include "common.h"
 #include <vector>
@@ -20,9 +20,10 @@
     if (duration.count() > 1)                                                                        \
         printf("Time taken by function %s: %lld ms\n",  name , duration.count());*/
 
-struct ggml_tensor* tensor_shaped_like(struct ggml_context* ctx, struct ggml_allocr* allocr, ggml_type type, std::vector<int64_t> shape, float value) {
+struct ggml_tensor* tensor_shaped_like(struct ggml_context* ctx, ggml_tallocr*  allocr, ggml_type type, std::vector<int64_t> shape, float value) {
     auto tensor = ggml_new_tensor(ctx, type, shape.size(), shape.data());
-    ALLOC(tensor)
+    if(allocr)
+	ggml_tallocr_alloc(allocr, tensor);
     auto data_fp32 = (type == GGML_TYPE_F32)
             ? static_cast<float*>(tensor->data)
             : nullptr;
@@ -42,7 +43,7 @@ struct ggml_tensor* tensor_shaped_like(struct ggml_context* ctx, struct ggml_all
     return tensor;
 }
 
-struct ggml_tensor* tensor_zeros(struct ggml_context* ctx, struct ggml_allocr* allocr, std::vector<int64_t> shape) {
+struct ggml_tensor* tensor_zeros(struct ggml_context* ctx, ggml_tallocr*  allocr, std::vector<int64_t> shape) {
     return tensor_shaped_like(ctx, allocr, DEFAULT_TENSOR_TYPE, std::move(shape), 0);
 }
 
@@ -293,7 +294,7 @@ template <class T> struct ggml_tensor* max_element_impl(struct ggml_context* ctx
     return ggml_view_1d(ctx, max, 1, (ggml_nelements(max)-1) * ggml_element_size(max));
 }
 
-template<class T> struct ggml_tensor* repeat_impl(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* tensor, int64_t new_dim_size, int across) {
+template<class T> struct ggml_tensor* repeat_impl(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* tensor, int64_t new_dim_size, int across) {
     //ASSERT(tensor->n_dims == 1, "Only 1d tensors supported");//n_dims not a member anymore
     ASSERT(across == 0 || across == 1, "Only across == 0 || 1 supported");
     std::vector<int64_t> shape = {across == 0 ? new_dim_size : tensor->ne[0], across == 1 ? new_dim_size : tensor->ne[0]};
@@ -923,7 +924,7 @@ struct ggml_tensor* tensor_per_row_cumsum(struct ggml_context* ctx, struct ggml_
     TENSOR_OP_IMPL(per_row_cumsum, tensor, ctx, tensor);
 }
 
-struct ggml_tensor* tensor_repeat(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* tensor, size_t new_dim_size, int across) {
+struct ggml_tensor* tensor_repeat(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* tensor, size_t new_dim_size, int across) {
     TENSOR_OP_IMPL(repeat, tensor, ctx, allocr, tensor, new_dim_size, across);
 }
 

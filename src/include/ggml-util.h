@@ -6,15 +6,14 @@
 #define VITS_CPP_GGML_UTIL_H
 
 #include "common.h"
-#include <ggml/ggml.h>
+#include <ggml.h>
+#include <ggml-alloc.h>
 #include "debug.h"
 #include <limits>
-#include <ggml/ggml-alloc.h>
 #include <random>
 #include "custom-ops.h"
 
 struct ggml_tensor* pad_3d(struct ggml_context* ctx, struct ggml_tensor* tensor, std::vector<int> pads) {
-    //ASSERT(tensor->n_dims == 3, "pad_3d: Input tensor should be 3D");//n_dims not a member anymore
     ASSERT(pads.size() == 6, "Invalid pad count");
     if (!ggml_is_contiguous(tensor))
         tensor = ggml_cont(ctx, tensor);
@@ -195,9 +194,10 @@ struct ggml_tensor* concat_3d(struct ggml_context* ctx, struct ggml_tensor* a, s
 
 extern std::default_random_engine rng;
 
-struct ggml_tensor* tensor_randn(struct ggml_context* ctx, struct ggml_allocr* allocr, std::vector<int64_t> dims) {
+struct ggml_tensor* tensor_randn(struct ggml_context* ctx, ggml_tallocr*  allocr, std::vector<int64_t> dims) {
     auto tensor = ggml_new_tensor(ctx, DEFAULT_TENSOR_TYPE, dims.size(), dims.data());
-    ALLOC(tensor)
+    if(allocr)
+	ggml_tallocr_alloc(allocr, tensor);
     auto data = static_cast<float*>(tensor->data);
     auto size = ggml_nelements(tensor) ;
     std::normal_distribution<float> dist(0.0f, 1.0f);
@@ -207,7 +207,7 @@ struct ggml_tensor* tensor_randn(struct ggml_context* ctx, struct ggml_allocr* a
     return tensor;
 }
 
-struct ggml_tensor* tensor_randn_like(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* other) {
+struct ggml_tensor* tensor_randn_like(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* other) {
     std::vector<int64_t> dims;
     //for (int i = 0; i < other->n_dims; ++i) {//n_dims not a member anymore
     for (int i = 0; i < ggml_n_dims(other); ++i) {
@@ -216,7 +216,7 @@ struct ggml_tensor* tensor_randn_like(struct ggml_context* ctx, struct ggml_allo
     return tensor_randn(ctx, allocr, dims);
 }
 
-struct ggml_tensor* tensor_like(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* other, float value) {
+struct ggml_tensor* tensor_like(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* other, float value) {
     std::vector<int64_t> shape;
     //for (auto i = 0; i < other->n_dims; ++i) {//n_dims not a member anymore
     for (auto i = 0; i < ggml_n_dims(other); ++i) {
@@ -225,11 +225,11 @@ struct ggml_tensor* tensor_like(struct ggml_context* ctx, struct ggml_allocr* al
     return tensor_shaped_like(ctx, allocr, other->type, shape, value);
 }
 
-struct ggml_tensor* ones_like(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* other) {
+struct ggml_tensor* ones_like(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* other) {
     return tensor_like(ctx, allocr, other, 1.0f);
 }
 
-struct ggml_tensor* zeros_like(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* other) {
+struct ggml_tensor* zeros_like(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* other) {
     return tensor_like(ctx, allocr, other, 0.0f);
 }
 
@@ -241,13 +241,14 @@ struct ggml_tensor* tensor_detach(struct ggml_context* ctx, struct ggml_tensor* 
     return detached;
 }
 
-struct ggml_tensor* index_put_last_dim(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* tensor, int index, float value) {
+struct ggml_tensor* index_put_last_dim(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* tensor, int index, float value) {
     // our index is actually 0
     //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     auto offset = tensor->nb[0] * index;
     auto view = ggml_view_3d(ctx, tensor, 1, tensor->ne[1], tensor->ne[2], tensor->nb[1], tensor->nb[2], offset);
     auto new_values = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, tensor->ne[1] * tensor->ne[2]);
-    ALLOC(new_values)
+    if(allocr)
+	ggml_tallocr_alloc(allocr, new_values);
     for (size_t i = 0; i < ggml_nelements(new_values); ++i) {
         ((float*)new_values->data)[i] = value;
     }
@@ -259,12 +260,13 @@ struct ggml_tensor* index_put_last_dim(struct ggml_context* ctx, struct ggml_all
     return to_return;
 }
 
-struct ggml_tensor* index_add_last_dim(struct ggml_context* ctx, struct ggml_allocr* allocr, struct ggml_tensor* tensor, int index, float value) {
+struct ggml_tensor* index_add_last_dim(struct ggml_context* ctx, ggml_tallocr*  allocr, struct ggml_tensor* tensor, int index, float value) {
     //ASSERT(tensor->n_dims == 3, "Only support 3d tensors");//n_dims not a member anymore
     auto offset = tensor->nb[0] * index;
     auto view = ggml_view_3d(ctx, tensor, 1, tensor->ne[1], tensor->ne[2], tensor->nb[1], tensor->nb[2], offset);
     auto new_values = ggml_new_tensor_3d(ctx, DEFAULT_TENSOR_TYPE, 1, tensor->ne[1], tensor->ne[2]);
-    ALLOC(new_values)
+    if(allocr)
+	ggml_tallocr_alloc(allocr, new_values);
     for (size_t i = 0; i < ggml_nelements(new_values); ++i) {
         ((float*)new_values->data)[i] = value;
     }
@@ -277,9 +279,10 @@ struct ggml_tensor* index_add_last_dim(struct ggml_context* ctx, struct ggml_all
 }
 
 
-struct ggml_tensor* tensor_arange(struct ggml_context* ctx, struct ggml_allocr* allocr, int end) {
+struct ggml_tensor* tensor_arange(struct ggml_context* ctx, ggml_tallocr* allocr, int end) {
     auto tensor = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, end);
-    ALLOC(tensor)
+    if(allocr)
+	ggml_tallocr_alloc(allocr, tensor);
     auto data = static_cast<float*>(tensor->data);
     for (int i = 0; i < end; ++i) {
         data[i] = (float)i;
